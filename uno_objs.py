@@ -2,7 +2,7 @@ import random
 
 class Card():
 
-    COLORS = ('blue', 'red', 'green', 'yellow', 'white')
+    COLORS = ('blue', 'red', 'green', 'yellow')
     VALUES = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'R', 'X', '+2', '+4', 'W')
     WILD = ('W', '+4')
 
@@ -19,8 +19,9 @@ class Card():
 
         if value in Card.WILD:
             self.wild = True
+            self.color = 'white'
         else:
-            self.wile = False
+            self.wild = False
 
     def getUIData(self):
         return (self.color, self.value)
@@ -77,8 +78,8 @@ class Deck():
         return len(self.deck)
 
     def populate(self):
-        for color in Card.colors:
-            for value in Card.values:
+        for color in Card.COLORS:
+            for value in Card.VALUES:
                 self.deck.append(Card(color, value))
                 if value != '0':
                     self.deck.append(Card(color, value))

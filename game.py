@@ -1,5 +1,6 @@
 from ui import UnoInterface
 from uno_players import Player, ComputerPlayer
+from match import Match
 import curses
 import time
 import random
@@ -21,6 +22,7 @@ class Game():
         self.buttonPointer = 1
         self.stagePointer = -1
         self.playerStaging = []
+        self.players = []
         self.numPlayers = 0
 
     def addPlayer(self, player):
@@ -35,6 +37,12 @@ class Game():
         for i, player in enumerate(self.playerStaging):
             self.ui.updateStage(i, player.name, player.points)
         self.numPlayers -= 1
+
+    def finalizePlayers(self):
+        for player in self.playerStaging:
+            self.players.append(player)
+        for i, player in enumerate(self.players):
+            self.players[i].id = i
 
     def canMoveToButton(self):
         return self.numPlayers < Game.BUTTON_PLAYER_REQUIREMENTS[self.buttonPointer][1] and self.numPlayers > Game.BUTTON_PLAYER_REQUIREMENTS[self.buttonPointer][0]
@@ -53,6 +61,20 @@ class Game():
                         complete = False
 
         return Game.COMPUTER_NAMES[index]
+
+    def playMatch(self):
+        self.finalizePlayers()
+        m = Match(self.players, self.ui)
+        self.ui.setDirectory('match')
+        self.players = m.play()
+
+        self.playerStaging = []
+        for player in self.players:
+            self.playerStaging.append(player)
+        self.players = []
+        for i, player in enumerate(self.playerStaging):
+            self.ui.updateStage(i, player.name, player.points)
+        self.ui.setDirectory('main')
 
     def start(self):
         self.ui.setDirectory('main')
@@ -85,7 +107,7 @@ class Game():
 
             elif command in Game.SELECT:
                 if self.buttonPointer == 0:
-                    self.ui.error("Sorry, This is Not Yet Ready")
+                    self.playMatch()
                 elif self.buttonPointer == 1:
                     self.ui.controls('Press Enter to Confirm Name')
                     name = self.ui.getPlayerName(self.numPlayers)

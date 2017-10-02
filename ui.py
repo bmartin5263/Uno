@@ -9,6 +9,7 @@ class UnoInterface():
     CARD_FORMAT = 'card{}'
     HAND_FORMAT = "{}'s Hand"
     STAGE_FORMAT = "player{}Stage"
+    NUMBER_CARDS_FORMAT = "{} Cards"
     COLORS = ('blue','red','green','yellow')
     VALUES = ('0','1','2','3','4','5','6','7','8','9','R','X','+2','+4','W')
     IGNORE_INPUT = (127, 260, 259, 261, 258)
@@ -23,6 +24,8 @@ class UnoInterface():
                       'highscoresTable', 'console')
 
     MAIN_BUTTONS = ('beginButton', 'addPlayerButton', 'addComputerButton', 'removePlayerButton', 'settingsButton')
+
+    PLAYER_TILES = ('p0Tile', 'p1Tile', 'p2Tile', 'p3Tile')
 
     BIG_NUMBERS = {'0': ["  .d8888b.  ", " d88P  Y88b ", " 888    888 ", " 888    888 ", " 888    888 ", " 888    888 ",
                          " Y88b  d88P ", '  "Y8888P"  '],
@@ -61,10 +64,10 @@ class UnoInterface():
         'hand': {'border': 'border', 'color': 'white', 'h': 9, 'l': 70, 'y': 23, 'x': 0},
         'deckMeter': {'border': 'box', 'color': 'white', 'h': 11, 'l': 5, 'y': 11, 'x': 2},
         'deckCount': {'border': None, 'color': 'white', 'h': 2, 'l': 9, 'y': 8, 'x': 1},
-        'p0Tile': {'border': 'box', 'color': 'blue', 'h': 4, 'l': 14, 'y': 7, 'x': 55},
-        'p1Tile': {'border': 'box', 'color': 'red', 'h': 4, 'l': 14, 'y': 11, 'x': 55},
-        'p2Tile': {'border': 'box', 'color': 'green', 'h': 4, 'l': 14, 'y': 15, 'x': 55},
-        'p3Tile': {'border': 'box', 'color': 'yellow', 'h': 4, 'l': 14, 'y': 19, 'x': 55},
+        'p0Tile': {'border': 'box', 'color': 'gray', 'h': 4, 'l': 14, 'y': 7, 'x': 55},
+        'p1Tile': {'border': 'box', 'color': 'gray', 'h': 4, 'l': 14, 'y': 11, 'x': 55},
+        'p2Tile': {'border': 'box', 'color': 'gray', 'h': 4, 'l': 14, 'y': 15, 'x': 55},
+        'p3Tile': {'border': 'box', 'color': 'gray', 'h': 4, 'l': 14, 'y': 19, 'x': 55},
         'card0': {'border': 'box', 'color': 'white', 'h': 4, 'l': 4, 'y': 27, 'x': 7},
         'card1': {'border': 'box', 'color': 'white', 'h': 4, 'l': 4, 'y': 27, 'x': 11},
         'card2': {'border': 'box', 'color': 'white', 'h': 4, 'l': 4, 'y': 27, 'x': 15},
@@ -161,7 +164,6 @@ class UnoInterface():
         self.playerPointer = -1
         self.stagePointer = -1
         self.hand = []
-        self.playerNames = []
         self.topCard = []
         self.bottomCard = ()
         self.handName = ''
@@ -272,6 +274,8 @@ class UnoInterface():
             self.putText('settingsButton', 1, 13, "Settings", 'white')
         elif type in ('player0Stage','player1Stage','player2Stage','player3Stage'):
             self.putText(type, 1, 1, "No Player")
+        elif type in UnoInterface.PLAYER_TILES:
+            self.resetTile(UnoInterface.PLAYER_TILES.index(type))
 
         window.refresh()
         self.windows[type]['panel'] = panel
@@ -318,25 +322,46 @@ class UnoInterface():
             pass
         self.windows['controls']['window'].refresh()
 
-    def drawHand(self):
+    def updateCardCount(self, num, amount):
+        tileName = UnoInterface.TILE_FORMAT.format(num)
+        cardString = UnoInterface.NUMBER_CARDS_FORMAT.format(amount)
+        if len(cardString) == 7:
+            self.putText(tileName, 2, 6, cardString)
+        else:
+            self.putText(tileName, 2, 5, cardString)
+
+    def drawHand(self, hidden):
         for i in range(14):
             windowName = UnoInterface.CARD_FORMAT.format(i)
             self.windows[windowName]['panel'].hide()
         for i in range(len(self.hand)):
             windowName = UnoInterface.CARD_FORMAT.format(i)
             window = self.windows[windowName]['window']
-            color = self.hand[i][0]
-            value = self.hand[i][1]
-            window.attrset(self.TEXT_COLORS[color])
-            if value not in ('+2','+4'):
-                self.putText(windowName, 1, 2, value, color)
-                self.putText(windowName, 2, 1, value, color)
-            else:
-                self.putText(windowName, 1, 1, value, color)
-                self.putText(windowName, 2, 1, value, color)
             self.windows[windowName]['panel'].show()
+            if not hidden:
+                color = self.hand[i][0]
+                value = self.hand[i][1]
+            else:
+                color = 'white'
+                value = '?'
+            window.attrset(self.TEXT_COLORS[color])
+            if value not in ('+4', 'W'):
+                if value == '+2':
+                    self.putText(windowName, 1, 1, value, color)
+                    self.putText(windowName, 2, 1, value, color)
+                else:
+                    self.putText(windowName, 1, 2, value, color)
+                    self.putText(windowName, 2, 1, value, color)
+                window.box()
+            else:
+                if value == '+4':
+                    self.putText(windowName, 1, 1, value, color)
+                    self.putText(windowName, 2, 1, value, color)
+                else:
+                    self.putText(windowName, 1, 2, value, color)
+                    self.putText(windowName, 2, 1, value, color)
+                self.rainbowCardBox(window, value)
             curses.panel.update_panels()
-            window.box()
             window.noutrefresh()
         handName = UnoInterface.HAND_FORMAT.format(self.handName)
         self.windows['hand']['window'].addstr(1, 1, '                          ')
@@ -368,28 +393,17 @@ class UnoInterface():
     def importCard(self, card, draw=True):
         self.bottomCard = tuple(self.topCard)
         self.topCard = list(card)
+        if self.windows['frontCard']['panel'].hidden():
+            self.windows['frontCard']['panel'].show()
+            self.refreshPanels()
+        else:
+            if self.windows['backCard']['panel'].hidden():
+                self.windows['backCard']['panel'].show()
+                self.refreshPanels()
         self.drawCard(True)
         if draw:
             self.drawCard()
         curses.doupdate()
-
-    def importCardToHand(self, card):
-        windowName = UnoInterface.CARD_FORMAT.format(len(self.hand))
-        window = self.windows[windowName]['window']
-        self.hand.append(card)
-        color = card[0]
-        value = card[1]
-        window.attrset(self.TEXT_COLORS[color])
-        if value not in ('+2', '+4'):
-            self.putText(windowName, 1, 2, value, color)
-            self.putText(windowName, 2, 1, value, color)
-        else:
-            self.putText(windowName, 1, 1, value, color)
-            self.putText(windowName, 2, 1, value, color)
-        self.windows[windowName]['panel'].show()
-        curses.panel.update_panels()
-        window.box()
-        window.refresh()
 
     def expandTopCard(self, amount):
         window = self.windows['frontCard']['window']
@@ -398,6 +412,8 @@ class UnoInterface():
             curses.doupdate()
         else:
             window.erase()
+            if self.bottomCard == ():
+                window.refresh()
             window.resize(2+amount, 4+amount)
             window.bkgd(ord(' ') | self.TEXT_COLORS[self.topCard[0]])
             window.attrset(self.TEXT_COLORS[self.topCard[0]])
@@ -456,9 +472,26 @@ class UnoInterface():
         self.windows[cardName]['panel'].move(newLocation[0],newLocation[1])
         self.windows[cardName]['location'] = newLocation
         window.attrset(self.TEXT_COLORS[self.hand[cardNum][0]])
-        window.box()
+        if self.hand[cardNum][0] == 'white':
+            self.rainbowCardBox(window, self.hand[cardNum][1])
+        else:
+            window.box()
         window.noutrefresh()
         self.refreshPanels()
+
+    def importPlayer(self, num, name):
+        tileName = UnoInterface.TILE_FORMAT.format(num)
+        window = self.windows[tileName]['window']
+        window.bkgd(0, self.TEXT_COLORS[self.COLORS[num]])
+        self.putText(tileName, 1, 1, '            ')
+        self.putText(tileName,1,1,name)
+        self.updateCardCount(num, 0)
+
+    def resetTile(self, num):
+        tileName = UnoInterface.TILE_FORMAT.format(num)
+        window = self.windows[tileName]['window']
+        window.bkgd(0, self.TEXT_COLORS['gray'])
+        self.putText(tileName, 1, 1, 'No Player')
 
     def emphasizePlayer(self, num):
         playerName = UnoInterface.TILE_FORMAT.format(num)
@@ -527,12 +560,13 @@ class UnoInterface():
             self.emphasizePlayer(self.playerPointer)
             curses.doupdate()
 
-    def importHand(self, hand, owner, offset=0):
-        self.setCardPointer(0)
+    def importHand(self, hand, owner, hidden, offset=0):
+        #self.setCardPointer(0)
         self.hand = hand
         self.handName = owner
-        self.drawHand()
-        self.setCardPointer(0)
+        self.drawHand(hidden)
+        if not hidden:
+            self.setCardPointer(0)
 
     def setDirectory(self, directory):
         for window in self.windows:
@@ -683,6 +717,40 @@ class UnoInterface():
         self.stagePointer = num
         if num >= 0:
             self.colorWindow(UnoInterface.STAGE_FORMAT.format(num), 'white')
+
+    def hidePile(self):
+        self.windows['frontCard']['panel'].hide()
+        self.windows['backCard']['panel'].hide()
+        self.refreshPanels()
+
+    def hideCards(self):
+        for i in range(14):
+            cardName = UnoInterface.CARD_FORMAT.format(i)
+            self.windows[cardName]['panel'].hide()
+        self.refreshPanels()
+
+    def rainbowCardBox(self, cardWindow, value):
+        cardWindow.addch(0,0,curses.ACS_ULCORNER, curses.color_pair(3))
+        for i in range(2):
+            cardWindow.addch(0, 1+i, curses.ACS_HLINE, curses.color_pair(3))
+        cardWindow.addch(0, 3, curses.ACS_URCORNER, curses.color_pair(3))
+        cardWindow.addch(1, 0, curses.ACS_VLINE, curses.color_pair(5))
+        cardWindow.addch(1, 3, curses.ACS_VLINE, curses.color_pair(5))
+        cardWindow.addch(2, 0, curses.ACS_VLINE, curses.color_pair(4))
+        cardWindow.addch(2, 3, curses.ACS_VLINE, curses.color_pair(4))
+        cardWindow.addch(3, 0, curses.ACS_LLCORNER, curses.color_pair(2))
+        for i in range(2):
+            cardWindow.addch(3, 1 + i, curses.ACS_HLINE, curses.color_pair(2))
+        try:
+            cardWindow.addch(3, 3, curses.ACS_LRCORNER, curses.color_pair(2))
+        except:
+            pass
+        if value == 'W':
+            cardWindow.addstr(1, 2, value, curses.color_pair(5))
+            cardWindow.addstr(2, 1, value, curses.color_pair(4))
+        else:
+            cardWindow.addstr(1, 1, value, curses.color_pair(5))
+            cardWindow.addstr(2, 1, value, curses.color_pair(4))
 
     def getInput(self):
         curses.flushinp()
