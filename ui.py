@@ -2,6 +2,7 @@ import curses
 import curses.panel
 import time
 import random
+import math
 
 class UnoInterface():
 
@@ -10,6 +11,7 @@ class UnoInterface():
     HAND_FORMAT = "{}'s Hand"
     STAGE_FORMAT = "player{}Stage"
     NUMBER_CARDS_FORMAT = "{} Cards"
+    REVERSE_FORMAT = "R{}"
     COLORS = ('blue','red','green','yellow')
     VALUES = ('0','1','2','3','4','5','6','7','8','9','R','X','+2','+4','W')
     IGNORE_INPUT = (127, 260, 259, 261, 258)
@@ -49,10 +51,44 @@ class UnoInterface():
                          ' Y88b  d88P ', '  "Y8888P"  '],
                    'X': [' Y8b    d8P ', '  Y8b  d8P  ', '   Y8888P   ', '    Y88P    ', '    d88b    ', '   d8888b   ',
                          '  d8P  Y8b  ', ' d8P    Y8b '],
-                   'R': ['   Y88b     ', '    Y88b    ', '     Y88b   ', '      Y88b  ', '      d88P  ', '     d88P   ',
-                         '    d88P    ', '   d88P     '],
+
+                   'R9': ['     d88P   ', '    d88P    ', '   d88P     ', '  d88P      ', '  Y88b     ', '   Y88b     ',
+                          '    Y88b    ', '     Y88b   '],
+
+                   'R8': ['    d88P   Y', '   d88P     ', '  d88P      ', ' d88P       ', ' Y88b       ', '  Y88b      ',
+                          '   Y88b     ', '    Y88b   d'],
+
+                   'R7': ['   d88P   Y8', '  d88P     Y', ' d88P       ', 'd88P        ', 'Y88b        ', ' Y88b       ',
+                          '  Y88b     d', '   Y88b   d8'],
+
+                   'R6': ['  d88P   Y88', ' d88P     Y8', 'd88P       Y', '88P         ', '88b         ', 'Y88b       d',
+                          ' Y88b     d8', '  Y88b   d88'],
+
+                   'R5': [' d88P   Y88b', 'd88P     Y88', '88P       Y8', '8P         Y', '8b         d', '88b       d8',
+                          'Y88b     d88', ' Y88b   d88P'],
+
+                   'R4': ['d88P   Y88b ', '88P     Y88b', '8P       Y88', 'P         Y8', 'b         d8', '8b       d88',
+                          '88b     d88P', 'Y88b   d88P '],
+
+                   'R3': ['88P   Y88b  ', '8P     Y88b ', 'P       Y88b', '         Y88', '         d88', 'b       d88P',
+                          '8b     d88P ', '88b   d88P  '],
+
+                   'R2': ['8P   Y88b   ', 'P     Y88b  ', '       Y88b ', '        Y88b', '        d88P', '       d88P ',
+                          'b     d88P  ', '8b   d88P   '],
+
+                   'R1': ['P   Y88b    ', '     Y88b   ', '      Y88b  ', '       Y88b ', '       d88P ', '      d88P  ',
+                          '     d88P   ', 'b   d88P    '],
+
+                   'R0': ['   Y88b     ', '    Y88b    ', '     Y88b   ', '      Y88b  ', '      d88P  ', '     d88P   ',
+                          '    d88P    ', '   d88P     '],
+
+
                    'W': [' 88      88 ', ' 88      88 ', ' 88  db  88 ', ' 88 d88b 88 ', ' 88d8888b88 ', ' 88P    Y88 ',
-                         ' 8P      Y8 ', ' P        Y ']
+                         ' 8P      Y8 ', ' P        Y '],
+                   '+2':['   db       ', '   88       ', ' C8888D     ', '   88  8888 ', '   VP     8 ', '       8888 ',
+                         '       8    ', '       8888 '],
+                   '+4':['   db       ', '   88       ', ' C8888D     ', '   88    d  ', '   VP   d8  ', '       d 8  ',
+                         '      d8888 ', '         8  ']
                    }
 
     WINDOW_TYPES = {
@@ -163,6 +199,7 @@ class UnoInterface():
         self.cardPointer = -1
         self.playerPointer = -1
         self.stagePointer = -1
+        self.offset = 0
         self.hand = []
         self.topCard = []
         self.bottomCard = ()
@@ -182,7 +219,7 @@ class UnoInterface():
         curses.init_pair(10, 226, 58)
         curses.init_pair(11, 8, curses.COLOR_BLACK)
 
-        self.windows['main']['window'].attrset(self.TEXT_COLORS["white"])
+        self.windows['main']['window'].attrset(self.TEXT_COLORS['white'])
         self.windows['main']['window'].box()
         self.windows['main']['window'].refresh()
 
@@ -213,7 +250,7 @@ class UnoInterface():
         self.createTypeWindow('highscoresTable')
 
         self.setPlayerPointer(-1)
-        self.setCardPointer(-1)
+        #self.setCardPointer(-1)
         self.refreshPanels()
         self.setDirectory('none')
 
@@ -285,7 +322,7 @@ class UnoInterface():
         curses.panel.update_panels();
         self.windows['main']['window'].refresh()
 
-    def putText(self, windowName, y, x, text, color=None):
+    def putText(self, windowName, y, x, text, color=None, refresh=True):
         if color:
             try:
                 self.windows[windowName]['window'].addstr(y, x, text, self.TEXT_COLORS[color])
@@ -296,7 +333,8 @@ class UnoInterface():
                 self.windows[windowName]['window'].addstr(y, x, text)
             except:
                 pass
-        self.windows[windowName]['window'].refresh()
+        if refresh:
+            self.windows[windowName]['window'].refresh()
 
     def console(self, text):
         self.windows['console']['window'].addstr(1,1,'                                                                    ')
@@ -315,62 +353,66 @@ class UnoInterface():
         self.windows['console']['window'].refresh()
 
     def controls(self, text):
-        self.windows['controls']['window'].erase()
+        self.windows['controls']['window'].addstr(0, 0,
+        '                                                                    ', self.TEXT_COLORS['invert'])
         try:
             self.windows['controls']['window'].addstr(0, 0, text, self.TEXT_COLORS['invert'])
         except:
             pass
         self.windows['controls']['window'].refresh()
 
-    def updateCardCount(self, num, amount):
+    def updateCardCount(self, num, amount, color=False):
         tileName = UnoInterface.TILE_FORMAT.format(num)
         cardString = UnoInterface.NUMBER_CARDS_FORMAT.format(amount)
         if len(cardString) == 7:
             self.putText(tileName, 2, 6, cardString)
         else:
             self.putText(tileName, 2, 5, cardString)
+        if color:
+            self.windows[tileName]['window'].bkgd(ord(' ') | self.BACK_COLORS[self.COLORS[num]])
+            self.windows[tileName]['window'].attrset(self.TEXT_COLORS[self.COLORS[num]])
+            self.windows[tileName]['window'].box()
+            self.windows[tileName]['window'].refresh()
 
     def drawHand(self, hidden):
         for i in range(14):
             windowName = UnoInterface.CARD_FORMAT.format(i)
             self.windows[windowName]['panel'].hide()
-        for i in range(len(self.hand)):
-            windowName = UnoInterface.CARD_FORMAT.format(i)
-            window = self.windows[windowName]['window']
-            self.windows[windowName]['panel'].show()
-            if not hidden:
-                color = self.hand[i][0]
-                value = self.hand[i][1]
-            else:
-                color = 'white'
-                value = '?'
-            window.attrset(self.TEXT_COLORS[color])
-            if value not in ('+4', 'W'):
-                if value == '+2':
-                    self.putText(windowName, 1, 1, value, color)
-                    self.putText(windowName, 2, 1, value, color)
+            index = i+(14*self.offset)
+            if index < len(self.hand):
+                window = self.windows[windowName]['window']
+                self.windows[windowName]['panel'].show()
+                if not hidden:
+                    color = self.hand[index][0]
+                    value = self.hand[index][1]
                 else:
-                    self.putText(windowName, 1, 2, value, color)
-                    self.putText(windowName, 2, 1, value, color)
-                window.box()
-            else:
-                if value == '+4':
-                    self.putText(windowName, 1, 1, value, color)
-                    self.putText(windowName, 2, 1, value, color)
+                    color = 'white'
+                    value = '?'
+                window.bkgd(0, self.TEXT_COLORS[color])
+                if value not in ('+4', 'W'):
+                    self.putText(windowName, 1, 1, '  ', color, False)
+                    self.putText(windowName, 2, 1, '  ', color, False)
+                    if value == '+2':
+                        self.putText(windowName, 1, 1, value, color, False)
+                        self.putText(windowName, 2, 1, value, color, False)
+                    else:
+                        self.putText(windowName, 1, 2, value, color, False)
+                        self.putText(windowName, 2, 1, value, color, False)
+                    window.box()
                 else:
-                    self.putText(windowName, 1, 2, value, color)
-                    self.putText(windowName, 2, 1, value, color)
-                self.rainbowCardBox(window, value)
-            curses.panel.update_panels()
-            window.noutrefresh()
+                    self.rainbowCardBox(window, value)
+                curses.panel.update_panels()
+                window.noutrefresh()
         handName = UnoInterface.HAND_FORMAT.format(self.handName)
-        self.windows['hand']['window'].addstr(1, 1, '                          ')
+        self.windows['hand']['window'].addstr(1, 1, ' '*68)
         self.windows['hand']['window'].addstr(1,1,handName)
+        self.windows['hand']['window'].addstr(1,55,"[{}]".format("-"*int(math.ceil(len(self.hand)/14))))
+        self.windows['hand']['window'].addstr(1, 56+self.offset, "|")
         self.windows['hand']['window'].noutrefresh()
         curses.doupdate()
 
 
-    def drawCard(self, bottom=False):
+    def drawCard(self, bottom, reverse):
         if bottom and self.bottomCard != ():
             color = self.bottomCard[0]
             value = self.bottomCard[1]
@@ -386,29 +428,33 @@ class UnoInterface():
         window.bkgd(ord(' ') | self.TEXT_COLORS[color])
         window.attrset(self.TEXT_COLORS[color])
         window.box()
+        if value == 'R':
+            if reverse:
+                value = 'R9'
+            else:
+                value = 'R0'
         for i, num in enumerate(UnoInterface.BIG_NUMBERS[value]):
             window.addstr(2 + i, 1, num, self.TEXT_COLORS[color])
         window.noutrefresh()
 
-    def importCard(self, card, draw=True):
+    def importCard(self, card, draw=True, reverse=False):
         self.bottomCard = tuple(self.topCard)
         self.topCard = list(card)
         if self.windows['frontCard']['panel'].hidden():
             self.windows['frontCard']['panel'].show()
-            self.refreshPanels()
         else:
             if self.windows['backCard']['panel'].hidden():
                 self.windows['backCard']['panel'].show()
-                self.refreshPanels()
-        self.drawCard(True)
+        self.drawCard(True, reverse)
+        time.sleep(.01)
         if draw:
-            self.drawCard()
+            self.drawCard(False, reverse)
         curses.doupdate()
 
-    def expandTopCard(self, amount):
+    def expandTopCard(self, amount, reverse=False):
         window = self.windows['frontCard']['window']
         if amount == 11:
-            self.drawCard()
+            self.drawCard(False, reverse)
             curses.doupdate()
         else:
             window.erase()
@@ -435,11 +481,10 @@ class UnoInterface():
         seed += 1
         if seed == 1:
             self.console("Wild Card! Changing Color...")
-        elif seed == 17:
-            self.console("")
         window = self.windows['frontCard']['window']
         if seed in (16, 12, 8, 4):
             window.attrset(self.TEXT_COLORS['red'])
+            #window.bkgd(0, self.TEXT_COLORS['red'])
         elif seed in (15, 11, 7, 3):
             window.attrset(self.TEXT_COLORS['yellow'])
         elif seed in (14, 10, 6, 2):
@@ -455,7 +500,7 @@ class UnoInterface():
         time.sleep(.07)
 
     def elevateCard(self, cardNum):
-        cardName = UnoInterface.CARD_FORMAT.format(cardNum)
+        cardName = UnoInterface.CARD_FORMAT.format(cardNum%14)
         window = self.windows[cardName]['window']
         newLocation = (self.windows[cardName]['location'][0]-1,self.windows[cardName]['location'][1])
         self.windows[cardName]['panel'].move(newLocation[0],newLocation[1])
@@ -466,12 +511,12 @@ class UnoInterface():
         self.refreshPanels()
 
     def lowerCard(self, cardNum):
-        cardName = UnoInterface.CARD_FORMAT.format(cardNum)
+        cardName = UnoInterface.CARD_FORMAT.format(cardNum%14)
         window = self.windows[cardName]['window']
         newLocation = (self.windows[cardName]['location'][0]+1,self.windows[cardName]['location'][1])
         self.windows[cardName]['panel'].move(newLocation[0],newLocation[1])
         self.windows[cardName]['location'] = newLocation
-        window.attrset(self.TEXT_COLORS[self.hand[cardNum][0]])
+        window.bkgd(0, self.TEXT_COLORS[self.hand[cardNum][0]])
         if self.hand[cardNum][0] == 'white':
             self.rainbowCardBox(window, self.hand[cardNum][1])
         else:
@@ -531,19 +576,22 @@ class UnoInterface():
         self.windows[playerName]['window'] = window
 
     def setCardPointer(self, num):
+        if len(self.hand) > 0:
+            newOffset = self.getOffset(num)
+        else:
+            newOffset = 0
         if self.cardPointer != -1:
             self.lowerCard(self.cardPointer)
         self.cardPointer = num
-        if num >= 0:
-            self.elevateCard(num)
-
-    def moveCardPointer(self, num):
-        if 0 <= self.cardPointer + num < len(self.hand):
-            current = int(self.cardPointer)
-            self.lowerCard(current)
-            self.cardPointer += num
+        if newOffset != self.offset and self.cardPointer != -1:
+            self.offset = newOffset
+            self.drawHand(False)
+        if self.cardPointer >= 0:
             self.elevateCard(self.cardPointer)
-            curses.doupdate()
+
+
+    def getOffset(self, num):
+        return num // 14
 
     def setPlayerPointer(self, num):
         if self.playerPointer != -1:
@@ -552,21 +600,15 @@ class UnoInterface():
         if num >= 0:
             self.emphasizePlayer(num)
 
-    def movePlayerPointer(self, num):
-        if 0 <= self.playerPointer + num < 4:
-            current = int(self.playerPointer)
-            self.understatePlayer(current)
-            self.playerPointer += num
-            self.emphasizePlayer(self.playerPointer)
-            curses.doupdate()
-
-    def importHand(self, hand, owner, hidden, offset=0):
-        #self.setCardPointer(0)
+    def importHand(self, hand, owner, hidden, updateOffset):
         self.hand = hand
         self.handName = owner
+        if updateOffset:
+            newOffset = math.ceil(len(hand)/14) - 1
+            if newOffset != self.offset:
+                self.offset = newOffset
+                #self.setCardPointer(14*self.offset)
         self.drawHand(hidden)
-        if not hidden:
-            self.setCardPointer(0)
 
     def setDirectory(self, directory):
         for window in self.windows:
@@ -576,7 +618,7 @@ class UnoInterface():
             for window in self.MATCH_DIRECTORY:
                 if window != 'main':
                     self.windows[window]['panel'].show()
-            self.putText('controls', 0, 0, 'Controls: (P)ause, Pas(s), (D)raw, Space Bar - Select Card', 'invert')
+            self.controls('Controls: (P)ause, Pas(s), (D)raw, Space Bar - Select Card')
         elif directory == 'main':
             for window in self.MAIN_DIRECTORY:
                 if window != 'main':
@@ -745,12 +787,56 @@ class UnoInterface():
             cardWindow.addch(3, 3, curses.ACS_LRCORNER, curses.color_pair(2))
         except:
             pass
+        cardWindow.addstr(1, 1, '  ', curses.color_pair(5))
+        cardWindow.addstr(2, 1, '  ', curses.color_pair(4))
         if value == 'W':
             cardWindow.addstr(1, 2, value, curses.color_pair(5))
             cardWindow.addstr(2, 1, value, curses.color_pair(4))
         else:
             cardWindow.addstr(1, 1, value, curses.color_pair(5))
             cardWindow.addstr(2, 1, value, curses.color_pair(4))
+
+    def drawDeckVisual(self, lst):
+        for i in range(9):
+            self.putText('deckMeter', 9 - i, 2, ' ', 'white', False)
+        for i, string in enumerate(lst):
+            if i < 3:
+                self.putText('deckMeter', 9 - i, 2, '=', 'red', False)
+            elif i < 6:
+                self.putText('deckMeter', 9 - i, 2, '=', 'yellow', False)
+            elif i < 9:
+                self.putText('deckMeter', 9 - i, 2, '=', 'green', False)
+        self.windows['deckMeter']['window'].refresh()
+
+    def importDeck(self, deck):
+        deckLength = len(deck)
+        deckCeiling = math.ceil(deckLength / 12)
+        numCardsString = UnoInterface.NUMBER_CARDS_FORMAT.format(str(deckLength))
+        self.putText('deckCount', 1, 0, '         ', 'white', False)
+        self.putText('deckCount', 1, 0, numCardsString, 'white')
+        deckVisual = []
+        for i in range(deckCeiling):
+            deckVisual.append('=')
+        self.drawDeckVisual(deckVisual)
+
+    def eventReverse(self, i, reverse):
+        color = self.topCard[0]
+        window = self.windows['frontCard']['window']
+
+        if reverse:
+            index = 9-i
+        else:
+            index = i
+
+        formatted = UnoInterface.REVERSE_FORMAT.format(index)
+
+        for i in range(8):
+            window.addstr(2 + i, 1, '            ', self.TEXT_COLORS[color])
+        for i, num in enumerate(UnoInterface.BIG_NUMBERS[formatted]):
+            window.addstr(2 + i, 1, num, self.TEXT_COLORS[color])
+
+        window.refresh()
+        time.sleep(.07)
 
     def getInput(self):
         curses.flushinp()

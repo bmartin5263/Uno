@@ -3,7 +3,7 @@ import random
 class Card():
 
     COLORS = ('blue', 'red', 'green', 'yellow')
-    VALUES = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'R', 'X', '+2', '+4', 'W')
+    VALUES = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'R', 'X', '+2')
     WILD = ('W', '+4')
 
     def __init__(self, color, value):
@@ -40,7 +40,7 @@ class Hand():
     def __getitem__(self, item):
         return self.hand[item]
 
-    def getUIDate(self):
+    def getUIData(self):
         output = []
         for card in self.hand:
             output.append(card.getUIData())
@@ -50,7 +50,7 @@ class Hand():
         self.hand.append(card)
 
     def removeCard(self, index):
-        self.hand.pop(int(index))
+        return self.hand.pop(int(index))
 
     def discard(self):
         self.hand = []
@@ -96,4 +96,3 @@ class Deck():
 
     def shuffle(self):
         random.shuffle(self.deck)
-

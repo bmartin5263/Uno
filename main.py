@@ -10,5 +10,5 @@ def main(stdscreen):
 if __name__ == '__main__':
     sys.stdout.write("\x1b[8;33;70t")
     sys.stdout.flush()
-    time.sleep(.01)
+    time.sleep(.05)
     wrapper(main)
