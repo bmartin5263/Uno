@@ -2,13 +2,11 @@ from uno_objs import Card, Deck, Hand
 import curses
 import time
 import random
-import threading
-import queue
 
 class Match():
 
-    TURN_INPUT = (ord(' '),)
-    HAND_INPUT = (curses.KEY_LEFT, curses.KEY_RIGHT, ord('d'))
+    TURN_INPUT = (ord(' '),ord('p'))
+    HAND_INPUT = (curses.KEY_LEFT, curses.KEY_RIGHT, ord('d'), ord('f'), ord('q'))
     INITIAL_CARD_COUNT = 7
     WILD_CARDS = ('+4', 'W')
     WILD_INPUT = (ord('b'),ord('g'),ord('y'),ord('r'))
@@ -18,11 +16,18 @@ class Match():
         ord('g'):'green',
         ord('y'):'yellow'
     }
+    SPEEDS = {
+        'Slow' : 2,
+        'Normal' : 1,
+        'Fast' : 0
+    }
 
-    def __init__(self, players, ui):
+    def __init__(self, players, ui, settings):
         self.players = players
         self.ui = ui
+
         self.complete = False
+        self.abort = False
 
         self.playerControlled = []
         self.computerControlled = []
@@ -30,19 +35,26 @@ class Match():
         self.deck = Deck(True)
         self.pile = Deck(False)
 
-        self.displayEffects = True
-        self.computerSpeed = 0
+        self.displayEffects = settings['effects']
+        self.computerSpeed = Match.SPEEDS[settings['speed']]
+        self.hideComputerHands = settings['hideHands']
 
         self.errorMessage = ''
         self.errorTime = None
 
         self.turn = None
+        self.winner = None
         self.cardPointer = -1
         self.currentHand = None
         self.turnComplete = False
         self.reverse = False
         self.currentColor = None
         self.currentValue = None
+        self.viewingTop = True
+
+        self.forceDraw = 0
+        self.consecutivePasses = 0
+        self.maxPasses = len(self.players)
 
     def eventBegin(self):
         self.ui.console("Beginning Match, Press Enter")
@@ -62,7 +74,7 @@ class Match():
         self.ui.console("First Turn will be {}, Press Enter".format(self.players[self.turn].name))
         self.ui.getInput()
         card = self.deck.drawCard()
-        #card = Card('blue','R')
+        #card = Card('blue','X')
         self.pile.addCard(card)
         self.ui.importCard(self.pile[0].getUIData(), False, self.reverse)
         for i in range(12):
@@ -70,25 +82,112 @@ class Match():
         self.currentColor = card.color
         self.currentValue = card.value
 
+        if self.currentValue in Match.WILD_CARDS:
+            self.ui.importHand(self.players[self.turn].hand.getUIData(), self.players[self.turn].name, False, False)
+            self.ui.emphasizePlayer(self.turn)
+            self.eventWild()
+        elif self.currentValue == 'X' or (self.currentValue == 'R' and len(self.players) == 2):
+            self.eventSkip(True)
+            self.turn = self.getNextTurn()
+        elif self.currentValue == 'R':
+            self.eventReverse()
+
+    def eventEnd(self):
+        if not self.abort:
+            name = self.players[self.winner].name
+            self.ui.console('{} Wins!'.format(name))
+            for j in range(1):
+                for i in range(17):
+                    self.ui.wildColor(i, self.winner, name)
+                    time.sleep(.1)
+
+            self.ui.emphasizePlayer(self.winner)
+            self.ui.console('Press Enter to Begin Point Tally'.format(name))
+            self.ui.getInput()
+            points = 0
+            for i, player in enumerate(self.players):
+                if i != self.winner:
+                    while len(player.hand) > 0:
+                        self.ui.console('{} Won {} Points!'.format(name, points))
+                        self.ui.updateCardCount(i, len(player.hand))
+                        self.ui.importHand(player.hand.getUIData(), player.name, False, True)
+                        card = player.removeCard(0)
+                        points += card.points
+                        time.sleep(.1)
+                    self.ui.updateCardCount(i, len(player.hand))
+                    self.ui.importHand(player.hand.getUIData(), player.name, False, True)
+                    self.ui.console('{} Won {} Points!'.format(name, points))
+                    time.sleep(.1)
+
+            self.ui.console('{} Won {} Points! Press Enter'.format(name, points))
+            self.players[self.winner].addPoints(points)
+            self.ui.getInput()
+
+
+        for player in self.players:
+            player.discardHand()
+
+        return self.players
+
+
     def eventReverse(self):
         self.ui.error('Reverse Card Played! Reversing Turn Order.')
-        time.sleep(1)
+        if self.displayEffects:
+            time.sleep(1.5)
         for i in range(10):
             self.ui.eventReverse(i, self.reverse)
+            if self.displayEffects:
+                time.sleep(.07)
+        self.reverse = not self.reverse
 
-    def eventWild(self):
+    def eventSkip(self, selfSkip):
+        if not selfSkip:
+            self.turn = self.getNextTurn()
+        self.ui.error('Skip Card Played! Skipping {}\'s Turn.'.format(self.players[self.turn].name))
+        if self.displayEffects:
+            time.sleep(1.5)
+        for i in range(4):
+            self.ui.skipEvent(i,self.turn)
+            if self.displayEffects:
+                time.sleep(.3)
+
+    def eventWild(self, color=None):
+        if color is None:
+            self.ui.error("Wild Card! Pick a New Color: (B)lue, (R)ed, (G)reen, or (Y)ellow")
+            playerInput = self.ui.getInput()
+            while playerInput not in Match.WILD_INPUT:
+                playerInput = self.ui.getInput()
+            newColor = Match.COLOR_ABBREVIATIONS[playerInput]
+        else:
+            newColor = random.choice(self.ui.COLORS)
+        self.ui.changeTopCardColor(newColor)
+        self.currentColor = newColor
+        self.ui.error('Wild Card! Changing Color...')
         for i in range(17):
             self.ui.wildColor(i)
+            if self.displayEffects:
+                time.sleep(.07)
+
+    def eventPass(self):
+        self.ui.setCardPointer(-1, False)
+        self.consecutivePasses += 1
+        if self.consecutivePasses == self.maxPasses:
+            wildColorChange = random.choice(self.ui.COLORS)
+            self.eventWild(wildColorChange)
+            self.consecutivePasses = 0
 
     def removeCard(self, player):
         card = player.removeCard(self.cardPointer)
+        hide = False
+        if player.type != 'human':
+            hide = True
         self.ui.updateCardCount(self.turn, len(player.hand), True)
         self.ui.setCardPointer(-1)
-
+        self.consecutivePasses = 0
         self.pile.addCard(card)
         self.ui.importCard(self.pile[len(self.pile) - 1].getUIData(), False, self.reverse)
         self.ui.importHand(self.players[self.turn].hand.getUIData(), self.players[self.turn].name,
-                           False, False)
+                           hide, False)
 
         for i in range(12):
             self.ui.expandTopCard(i, self.reverse)
@@ -118,35 +217,52 @@ class Match():
             else:
                 return currentIndex - 1
 
+    def drawCard(self, player):
+        card = self.deck.drawCard()
+        hide = player.type == 'computer'
+        self.ui.importDeck(self.deck)
+        player.addCard(card)
+        self.ui.importHand(player.hand.getUIData(), player.name, hide, True)
+        self.ui.updateCardCount(self.turn, len(player.hand), True)
+        self.cardPointer = len(player.hand) - 1
+        self.ui.setCardPointer(self.cardPointer, hide)
+        if self.forceDraw > 0:
+            self.forceDraw -= 1
+
     def nextTurn(self):
+        player = self.players[self.turn]
         self.cardPointer = 0
-        turnType = self.players[self.turn].type
-        turnComplete = False
-        wild = False
-        reverse = False
-        self.ui.importHand(self.players[self.turn].hand.getUIData(), self.players[self.turn].name, False, False)
-        self.ui.setCardPointer(self.cardPointer)
+        turnType = player.type
+        cardCheck = None
+        if turnType == 'human':
+            self.ui.importHand(self.players[self.turn].hand.getUIData(), player.name, False, False)
+            self.ui.setCardPointer(self.cardPointer)
+        else:
+            self.ui.importHand(self.players[self.turn].hand.getUIData(), player.name, True, False)
+            self.ui.setCardPointer(-1)
         self.ui.emphasizePlayer(self.turn)
+        self.viewingTop = True
+        turnComplete = False
+        wildColorChange = None
+        legalCards = player.getAllLegalCards(self.currentColor, self.currentValue)
 
-        while not turnComplete:
-
-            player = self.players[self.turn]
-
-            if turnType == 'human':
+        if turnType == 'human':
+            while not turnComplete:
                 if self.errorTime is None:
-                    if len(self.deck) > 0:
-                        self.ui.console('Select a card, (D)raw, or (P)ause.')
+                    if self.forceDraw > 0 and len(self.deck) > 0:
+                        self.ui.error('Draw Card Played! Draw {} cards.'.format(self.forceDraw))
                     else:
-                        self.ui.console('Select a card, (P)ause, or Pas(s).')
-                    if player.forceDraw > 0:
-                        self.ui.error('Draw Card Played! Draw {} cards.'.format(player.forceDraw))
+                        if len(self.deck) > 0:
+                            self.ui.console('Select a card or (D)raw.')
+                        else:
+                            self.forceDraw = 0
+                            self.ui.console('Select a card or (P)ass.')
                 else:
                     if time.time() - self.errorTime <= 1:
                         self.ui.error(self.errorMessage)
                     else:
                         self.errorMessage = ''
                         self.errorTime = None
-
                 playerInput = self.ui.getInput()
                 if playerInput in Match.HAND_INPUT:
                     if playerInput == curses.KEY_LEFT:
@@ -159,55 +275,117 @@ class Match():
                             self.ui.setCardPointer(self.cardPointer)
                     elif playerInput == ord('d'):
                         if len(self.deck) > 0:
-                            card = self.deck.drawCard()
-                            self.ui.importDeck(self.deck)
-                            player.addCard(card)
-                            self.ui.importHand(player.hand.getUIData(), player.name, False, True)
-                            self.ui.updateCardCount(self.turn, len(player.hand), True)
-                            self.cardPointer = len(player.hand) - 1
-                            self.ui.setCardPointer(self.cardPointer)
+                            self.drawCard(player)
+                            legalCards = player.getAllLegalCards(self.currentColor, self.currentValue)
                         else:
                             self.errorMessage = "Deck is Empty!"
                             self.errorTime = time.time()
                             curses.beep()
+                    elif playerInput == ord('f') and len(self.pile) > 1:
+                        self.ui.exchangePile(self.viewingTop)
+                        self.viewingTop = not self.viewingTop
+                    elif playerInput == ord('q'):
+                        self.ui.setCardPointer(-1)
+                        turnComplete = True
+                        self.complete = True
+                        self.abort = True
+                        self.winner = 0
 
                 elif playerInput in Match.TURN_INPUT:
-                    if playerInput == ord(' '):
-                        cardCheck = player.checkCard(self.cardPointer)
-                        if cardCheck.value in Match.WILD_CARDS:
-                            self.removeCard(player)
-                            wild = True
-                            turnComplete = True
-                        elif cardCheck.color == self.currentColor or cardCheck.value == self.currentValue:
-                            if cardCheck.value == 'R':
-                                reverse = True
+                    if playerInput == ord(' ') and self.forceDraw == 0:
+                        if self.cardPointer in legalCards['all']:
+                            cardCheck = player.checkCard(self.cardPointer)
                             self.removeCard(player)
                             turnComplete = True
                         else:
-                            self.errorMessage = "Card Does Not Match Color {} or Value {}!".format(self.currentColor.title(), self.currentValue.title())
+                            if self.cardPointer in legalCards['wild']:
+                                self.errorMessage = "Cannot Use +4 Cards When You Have Cards Matching the Color or Value!"
+                            else:
+                                self.errorMessage = "Card Does Not Match Color {} or Value {}!".format(self.currentColor.title(), self.currentValue.title())
                             self.errorTime = time.time()
                             curses.beep()
+                    elif playerInput == ord('p'):
+                        if len(self.deck) == 0 and len(legalCards['all']) == 0:
+                            turnComplete = True
+                            self.eventPass()
+                        else:
+                            if len(self.deck) > 0:
+                                self.errorMessage = "Cannot Pass Until Deck is Empty!"
+                                self.errorTime = time.time()
+                                curses.beep()
+                            else:
+                                self.errorMessage = "Cannot Pass With Playable Cards!"
+                                self.errorTime = time.time()
+                                curses.beep()
+                    else:
+                        curses.beep()
 
-                if reverse:
+        elif turnType == 'computer':
+            self.ui.console("{}'s Turn".format(player.name))
+            if self.displayEffects:
+                time.sleep(self.computerSpeed)
+            drewCards = False
+
+            while not turnComplete:
+
+                player.think(self)
+
+                if len(self.deck) == 0 and len(legalCards['all']) == 0:
+                    turnComplete = True
+                    self.eventPass()
+
+                while len(legalCards['all']) == 0 or self.forceDraw > 0:
+                    drewCards = True
+                    self.drawCard(player)
+                    legalCards = player.getAllLegalCards(self.currentColor, self.currentValue)
+                    if self.displayEffects:
+                        time.sleep(.3)
+
+                chosenCard = random.choice(legalCards['all'])
+
+                if not drewCards:
+                    self.cardPointer = 0
+                    try:
+                        moves = random.randrange(1,min(len(player.hand),7))
+                    except ValueError:
+                        moves = 1
+                    for i in range(moves):
+                        self.cardPointer = i
+                        self.ui.setCardPointer(self.cardPointer, True)
+                        if self.displayEffects:
+                            time.sleep(.2)
+
+                self.cardPointer = chosenCard
+                cardCheck = player.checkCard(self.cardPointer)
+                self.removeCard(player)
+                turnComplete = True
+
+        oldTurn = self.turn
+
+        if cardCheck is not None:
+
+            if cardCheck.value == 'R':
+                if len(self.players) > 2:
                     self.eventReverse()
-                    self.reverse = not self.reverse
-                if wild:
-                    self.ui.error("Wild Card! Pick a New Color: (B)lue, (R)ed, (G)reen, or (Y)ellow")
-                    playerInput = self.ui.getInput()
-                    while playerInput not in Match.WILD_INPUT:
-                        playerInput = self.ui.getInput()
-                    newColor = Match.COLOR_ABBREVIATIONS[playerInput]
-                    self.ui.changeTopCardColor(newColor)
-                    self.currentColor = newColor
-                    self.eventWild()
+                else:
+                    self.eventSkip(False)
+            elif cardCheck.value == 'X':
+                self.eventSkip(False)
+            elif cardCheck.value in Match.WILD_CARDS:
+                if player.type != 'human':
+                    wildColorChange = random.choice(self.ui.COLORS)
+                self.eventWild(wildColorChange)
+                if cardCheck.value == '+4':
+                    self.forceDraw = min(4, len(self.deck))
+            elif cardCheck.value == '+2':
+                self.forceDraw = min(2, len(self.deck))
 
-            elif turnType == 'computer':
-                self.cardPointer = -1
-
-
-
-        self.ui.understatePlayer(self.turn)
-        self.turn = self.getNextTurn()
+        if len(player.hand) == 0:
+            self.complete = True
+            self.winner = oldTurn
+        else:
+            self.ui.understatePlayer(oldTurn)
+            self.turn = self.getNextTurn()
 
 
     def setupInterface(self):
@@ -222,4 +400,4 @@ class Match():
         self.eventBegin()
         while not self.complete:
             self.nextTurn()
-        return self.players
+        return self.eventEnd()

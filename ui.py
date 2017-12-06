@@ -23,7 +23,7 @@ class UnoInterface():
 
     MAIN_DIRECTORY = ('main', 'mainMenu', 'unoTitle', 'playerStaging', 'player0Stage', 'player1Stage', 'player2Stage', 'player3Stage',
                       'beginButton', 'addPlayerButton', 'addComputerButton', 'removePlayerButton', 'settingsButton',
-                      'highscoresTable', 'console')
+                      'settingsTable', 'console')
 
     MAIN_BUTTONS = ('beginButton', 'addPlayerButton', 'addComputerButton', 'removePlayerButton', 'settingsButton')
 
@@ -131,7 +131,7 @@ class UnoInterface():
         'addComputerButton': {'border': 'box', 'color': 'white', 'h': 3, 'l': 34, 'y': 22, 'x': 1},
         'removePlayerButton': {'border': 'box', 'color': 'gray', 'h': 3, 'l': 34, 'y': 25, 'x': 1},
         'settingsButton': {'border': 'box', 'color': 'white', 'h': 3, 'l': 34, 'y': 28, 'x': 1},
-        'highscoresTable': {'border': 'box', 'color': 'white', 'h': 15, 'l': 34, 'y': 16, 'x': 35},
+        'settingsTable': {'border': 'box', 'color': 'white', 'h': 15, 'l': 34, 'y': 16, 'x': 35},
     }
 
     def __init__(self, screen):
@@ -176,7 +176,7 @@ class UnoInterface():
             'addComputerButton': {'window': None, 'panel': None, 'location': None},
             'removePlayerButton': {'window': None, 'panel': None, 'location': None},
             'settingsButton': {'window': None, 'panel': None, 'location': None},
-            'highscoresTable': {'window': None, 'panel': None, 'location': None}
+            'settingsTable': {'window': None, 'panel': None, 'location': None}
             }
 
         self.TEXT_COLORS = {
@@ -187,6 +187,7 @@ class UnoInterface():
             'yellow': curses.color_pair(5),
             'invert': curses.color_pair(6),
             'gray': curses.color_pair(11),
+            'deepRed':curses.color_pair(12)
         }
 
         self.BACK_COLORS = {
@@ -199,6 +200,7 @@ class UnoInterface():
         self.cardPointer = -1
         self.playerPointer = -1
         self.stagePointer = -1
+        self.settingsPointer = -1
         self.offset = 0
         self.hand = []
         self.topCard = []
@@ -218,6 +220,7 @@ class UnoInterface():
         curses.init_pair(9, 82, 22)
         curses.init_pair(10, 226, 58)
         curses.init_pair(11, 8, curses.COLOR_BLACK)
+        curses.init_pair(12, 9, curses.COLOR_BLACK)
 
         self.windows['main']['window'].attrset(self.TEXT_COLORS['white'])
         self.windows['main']['window'].box()
@@ -247,7 +250,7 @@ class UnoInterface():
         self.createTypeWindow('addComputerButton')
         self.createTypeWindow('removePlayerButton')
         self.createTypeWindow('settingsButton')
-        self.createTypeWindow('highscoresTable')
+        self.createTypeWindow('settingsTable')
 
         self.setPlayerPointer(-1)
         #self.setCardPointer(-1)
@@ -287,9 +290,17 @@ class UnoInterface():
             self.putText('unoTitle', 2, 39, "\\\\ //", 'red')
         elif type == 'hand':
             self.putText('hand', 2, 1, '--------------------------------------------------------------------', 'white')
-        elif type == 'highscoresTable':
-            self.putText('highscoresTable', 1, 11, 'High Scores', 'white')
-            self.putText('highscoresTable', 2, 1, '--------------------------------', 'white')
+        elif type == 'settingsTable':
+            self.putText('settingsTable', 1, 13, 'Settings', 'white')
+            self.putText('settingsTable', 3, 2, '- Display Effects', 'white')
+            self.putText('settingsTable', 4, 8, 'True', 'green')
+            self.putText('settingsTable', 6, 2, '- Computer Speed', 'white')
+            self.putText('settingsTable', 7, 8, 'Normal', 'yellow')
+            self.putText('settingsTable', 9, 2, '- Hide Computer Hands', 'white')
+            self.putText('settingsTable', 10, 8, 'False', 'red')
+            self.putText('settingsTable', 12, 2, '- Does Nothing', 'white')
+            self.putText('settingsTable', 13, 8, 'False', 'red')
+            self.putText('settingsTable', 2, 1, '--------------------------------', 'white')
         elif type == 'cardRight':
             self.putText('cardRight', 1, 1, "->", 'white')
             self.putText('cardRight', 2, 1, "->", 'white')
@@ -320,7 +331,7 @@ class UnoInterface():
 
     def refreshPanels(self):
         curses.panel.update_panels();
-        self.windows['main']['window'].refresh()
+        curses.doupdate()
 
     def putText(self, windowName, y, x, text, color=None, refresh=True):
         if color:
@@ -364,6 +375,7 @@ class UnoInterface():
     def updateCardCount(self, num, amount, color=False):
         tileName = UnoInterface.TILE_FORMAT.format(num)
         cardString = UnoInterface.NUMBER_CARDS_FORMAT.format(amount)
+        self.putText(tileName, 2, 5, '        ')
         if len(cardString) == 7:
             self.putText(tileName, 2, 6, cardString)
         else:
@@ -379,7 +391,7 @@ class UnoInterface():
             windowName = UnoInterface.CARD_FORMAT.format(i)
             self.windows[windowName]['panel'].hide()
             index = i+(14*self.offset)
-            if index < len(self.hand):
+            if index < len(self.hand) and len(self.hand) > 0:
                 window = self.windows[windowName]['window']
                 self.windows[windowName]['panel'].show()
                 if not hidden:
@@ -407,7 +419,8 @@ class UnoInterface():
         self.windows['hand']['window'].addstr(1, 1, ' '*68)
         self.windows['hand']['window'].addstr(1,1,handName)
         self.windows['hand']['window'].addstr(1,55,"[{}]".format("-"*int(math.ceil(len(self.hand)/14))))
-        self.windows['hand']['window'].addstr(1, 56+self.offset, "|")
+        if len(self.hand) > 0:
+            self.windows['hand']['window'].addstr(1, 56+self.offset, "|")
         self.windows['hand']['window'].noutrefresh()
         curses.doupdate()
 
@@ -477,27 +490,39 @@ class UnoInterface():
             window.addstr(2 + i, 1, num)
         window.refresh()
 
-    def wildColor(self, seed):
+    def wildColor(self, seed, num=-1, name=''):
         seed += 1
-        if seed == 1:
-            self.console("Wild Card! Changing Color...")
-        window = self.windows['frontCard']['window']
-        if seed in (16, 12, 8, 4):
-            window.attrset(self.TEXT_COLORS['red'])
-            #window.bkgd(0, self.TEXT_COLORS['red'])
-        elif seed in (15, 11, 7, 3):
-            window.attrset(self.TEXT_COLORS['yellow'])
-        elif seed in (14, 10, 6, 2):
-            window.attrset(self.TEXT_COLORS['green'])
-        elif seed in (13, 9, 5, 1):
-            window.attrset(self.TEXT_COLORS['blue'])
+        if num == -1:
+            window = self.windows['frontCard']['window']
         else:
-            window.attrset(self.TEXT_COLORS[self.topCard[0]])
-        for i, num in enumerate(UnoInterface.BIG_NUMBERS[self.topCard[1]]):
-            window.addstr(2 + i, 1, num)
-        window.box()
-        window.refresh()
-        time.sleep(.07)
+            window = self.windows[UnoInterface.TILE_FORMAT.format(num)]['window']
+        if seed in (16, 12, 8, 4):
+            window.bkgd(0, self.TEXT_COLORS['red'])
+            if num != -1:
+                self.windows['console']['window'].addstr(1, 1, "{} Wins!".format(name), self.TEXT_COLORS['red'])
+                self.windows['console']['window'].noutrefresh()
+        elif seed in (15, 11, 7, 3):
+            window.bkgd(0, self.TEXT_COLORS['yellow'])
+            if num != -1:
+                self.windows['console']['window'].addstr(1, 1, "{} Wins!".format(name), self.TEXT_COLORS['yellow'])
+                self.windows['console']['window'].noutrefresh()
+        elif seed in (14, 10, 6, 2):
+            window.bkgd(0, self.TEXT_COLORS['green'])
+            if num != -1:
+                self.windows['console']['window'].addstr(1, 1, "{} Wins!".format(name), self.TEXT_COLORS['green'])
+                self.windows['console']['window'].noutrefresh()
+        elif seed in (13, 9, 5, 1):
+            window.bkgd(0, self.TEXT_COLORS['blue'])
+            if num != -1:
+                self.windows['console']['window'].addstr(1, 1, "{} Wins!".format(name), self.TEXT_COLORS['blue'])
+                self.windows['console']['window'].noutrefresh()
+        else:
+            if num == -1:
+                window.bkgd(0, self.TEXT_COLORS[self.topCard[0]])
+            else:
+                window.bkgd(0, self.TEXT_COLORS[UnoInterface.COLORS[num]])
+        window.noutrefresh()
+        curses.doupdate()
 
     def elevateCard(self, cardNum):
         cardName = UnoInterface.CARD_FORMAT.format(cardNum%14)
@@ -510,17 +535,21 @@ class UnoInterface():
         window.noutrefresh()
         self.refreshPanels()
 
-    def lowerCard(self, cardNum):
+    def lowerCard(self, cardNum, hide):
         cardName = UnoInterface.CARD_FORMAT.format(cardNum%14)
         window = self.windows[cardName]['window']
         newLocation = (self.windows[cardName]['location'][0]+1,self.windows[cardName]['location'][1])
         self.windows[cardName]['panel'].move(newLocation[0],newLocation[1])
         self.windows[cardName]['location'] = newLocation
-        window.bkgd(0, self.TEXT_COLORS[self.hand[cardNum][0]])
-        if self.hand[cardNum][0] == 'white':
-            self.rainbowCardBox(window, self.hand[cardNum][1])
-        else:
+        if hide:
+            window.bkgd(0, self.TEXT_COLORS['white'])
             window.box()
+        else:
+            window.bkgd(0, self.TEXT_COLORS[self.hand[cardNum][0]])
+            if self.hand[cardNum][0] == 'white':
+                self.rainbowCardBox(window, self.hand[cardNum][1])
+            else:
+                window.box()
         window.noutrefresh()
         self.refreshPanels()
 
@@ -575,13 +604,13 @@ class UnoInterface():
         window.refresh()
         self.windows[playerName]['window'] = window
 
-    def setCardPointer(self, num):
+    def setCardPointer(self, num, hide=False):
         if len(self.hand) > 0:
             newOffset = self.getOffset(num)
         else:
             newOffset = 0
         if self.cardPointer != -1:
-            self.lowerCard(self.cardPointer)
+            self.lowerCard(self.cardPointer, hide)
         self.cardPointer = num
         if newOffset != self.offset and self.cardPointer != -1:
             self.offset = newOffset
@@ -615,14 +644,23 @@ class UnoInterface():
             if window != 'main':
                 self.windows[window]['panel'].hide()
         if directory == 'match':
+            self.playerPointer = -1
+            self.stagePointer = -1
+            self.cardPointer = -1
+            self.offset = 0
+            self.hand = []
+            self.topCard = []
+            self.bottomCard = ()
+            self.handName = ''
             for window in self.MATCH_DIRECTORY:
-                if window != 'main':
+                if window != 'main' and window != 'backCard':
                     self.windows[window]['panel'].show()
-            self.controls('Controls: (P)ause, Pas(s), (D)raw, Space Bar - Select Card')
+            self.controls('P - Pass, Space - Select Card, Q - Quit, F - Flip')
         elif directory == 'main':
             for window in self.MAIN_DIRECTORY:
                 if window != 'main':
                     self.windows[window]['panel'].show()
+            self.console("Welcome to Uno!")
         self.refreshPanels()
 
     def updateMainButtons(self, numPlayers, pointer):
@@ -707,14 +745,24 @@ class UnoInterface():
             c = self.getInput()
             window.addstr(1, 1, '            ')
         curses.curs_set(0)
-        if name == []:
+        name = ''.join(name)
+        if name is '' or name.replace(' ','') is '':
             self.clearStage(num)
             return False, ''
-        return True, ''.join(name)
+        return True, name
 
     def colorWindow(self, name, color):
         self.windows[name]['window'].bkgd(0, self.TEXT_COLORS[color])
         self.windows[name]['window'].refresh()
+
+    def skipEvent(self, i, num):
+        formatTile = UnoInterface.TILE_FORMAT.format(num)
+        window = self.windows[formatTile]['window']
+        if i % 2 == 0:
+            window.bkgd(0, self.TEXT_COLORS['gray'])
+        else:
+            window.bkgd(0, self.TEXT_COLORS[UnoInterface.COLORS[num]])
+        window.refresh()
 
     def emphasizePlayer(self, num):
         playerName = UnoInterface.TILE_FORMAT.format(num)
@@ -836,7 +884,59 @@ class UnoInterface():
             window.addstr(2 + i, 1, num, self.TEXT_COLORS[color])
 
         window.refresh()
-        time.sleep(.07)
+
+    def exchangePile(self, viewingTop):
+        if viewingTop:
+            self.windows['frontCard']['panel'].bottom()
+            self.windows['backCard']['panel'].top()
+        else:
+            self.windows['frontCard']['panel'].top()
+            self.windows['backCard']['panel'].bottom()
+        self.refreshPanels()
+
+    def setSettingsPointer(self, num):
+        if self.settingsPointer == 0:
+            self.putText('settingsTable', 3, 2, '- Display Effects', 'white')
+        if self.settingsPointer == 1:
+            self.putText('settingsTable', 6, 2, '- Computer Speed', 'white')
+        if self.settingsPointer == 2:
+            self.putText('settingsTable', 9, 2, '- Hide Computer Hands', 'white')
+        if self.settingsPointer == 3:
+            self.putText('settingsTable', 12, 2, '- Does Nothing', 'white')
+        self.settingsPointer = num
+        if self.settingsPointer == 0:
+            self.putText('settingsTable', 3, 2, '- Display Effects', 'blue')
+        if self.settingsPointer == 1:
+            self.putText('settingsTable', 6, 2, '- Computer Speed', 'blue')
+        if self.settingsPointer == 2:
+            self.putText('settingsTable', 9, 2, '- Hide Computer Hands', 'blue')
+        if self.settingsPointer == 3:
+            self.putText('settingsTable', 12, 2, '- Does Nothing', 'blue')
+
+    def updateSettingsBoard(self, settings):
+        self.putText('settingsTable', 4, 8, '        ', 'white', False)
+        if settings['effects']:
+            self.putText('settingsTable', 4, 8, 'True', 'green', False)
+        else:
+            self.putText('settingsTable', 4, 8, 'False', 'red', False)
+        self.putText('settingsTable', 10, 8, '        ', 'white', False)
+        if settings['hideHands']:
+            self.putText('settingsTable', 10, 8, 'True', 'green', False)
+        else:
+            self.putText('settingsTable', 10, 8, 'False', 'red', False)
+        self.putText('settingsTable', 13, 8, '        ', 'white', False)
+        if settings['dummy']:
+            self.putText('settingsTable', 13, 8, 'True', 'green', False)
+        else:
+            self.putText('settingsTable', 13, 8, 'False', 'red', False)
+        self.putText('settingsTable', 7, 8, '        ', 'white', False)
+        if settings['speed'] == 'Slow':
+            self.putText('settingsTable', 7, 8, 'Slow', 'red', False)
+        elif settings['speed'] == 'Normal':
+            self.putText('settingsTable', 7, 8, 'Normal', 'yellow', False)
+        elif settings['speed'] == 'Fast':
+            self.putText('settingsTable', 7, 8, 'Fast', 'green', False)
+        self.windows['settingsTable']['window'].refresh()
 
     def getInput(self):
         curses.flushinp()

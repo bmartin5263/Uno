@@ -31,6 +31,24 @@ class Player():
     def removeCard(self, index):
         return self.hand.removeCard(index)
 
+    def getAllLegalCards(self, color, value):
+        out = {'all': [],
+               'wild': []}
+        for i, card in enumerate(self.hand):
+            if card.value == value or card.color == color:
+                out['all'].append(i)
+            elif card.value in ('W','+4'):
+                out['wild'].append(i)
+        canPlusFour = len(out['all']) == 0
+        for index in out['wild']:
+            card = self.hand[index]
+            if card.value == '+4':
+                if canPlusFour:
+                    out['all'].append(index)
+            else:
+                out['all'].append(index)
+        return out
+
 class ComputerPlayer(Player):
 
     def __init__(self, name):
@@ -45,3 +63,10 @@ class ComputerPlayer(Player):
         self.canDrawTwo = False
         self.canDrawFour = False
         self.canValueChange = False
+
+    def think(self, match):
+        legalCards = self.getAllLegalCards(match.currentColor, match.currentValue)
+
+        if len(legalCards['all']) == 0:
+            if len(match.deck) == 0:
+                pass

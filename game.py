@@ -12,6 +12,17 @@ class Game():
     BUTTON_PLAYER_REQUIREMENTS = ((1,5),(-1,4),(-1,4),(0,5),(-1,5))
     COMPUTER_NAMES = ('Watson', 'SkyNet', 'Hal 9000', 'Metal Gear')
     SELECT = (ord(' '), ord('\n'))
+    SETTINGS_MOVEMENTS = {
+        0 : [3,1],
+        1 : [0,2],
+        2 : [1,3],
+        3 : [2,0]
+    }
+    NEXT_SPEED = {
+        'Slow' : 'Normal',
+        'Normal' : 'Fast',
+        'Fast' : 'Slow'
+    }
 
     def __init__(self, screen):
         self.screen = screen
@@ -21,9 +32,17 @@ class Game():
 
         self.buttonPointer = 1
         self.stagePointer = -1
+        self.settingsPointer = -1
         self.playerStaging = []
         self.players = []
         self.numPlayers = 0
+
+        self.settings = {
+            'effects' : True,
+            'hideHands' : False,
+            'speed' : 'Normal',
+            'dummy' : False
+        }
 
     def addPlayer(self, player):
         self.playerStaging.append(player)
@@ -62,9 +81,19 @@ class Game():
 
         return Game.COMPUTER_NAMES[index]
 
+    def updateSettings(self):
+        if self.settingsPointer == 0:
+            self.settings['effects'] = not self.settings['effects']
+        if self.settingsPointer == 1:
+            self.settings['speed'] = Game.NEXT_SPEED[self.settings['speed']]
+        if self.settingsPointer == 2:
+            self.settings['hideHands'] = not self.settings['hideHands']
+        if self.settingsPointer == 3:
+            self.settings['dummy'] = not self.settings['dummy']
+
     def playMatch(self):
         self.finalizePlayers()
-        m = Match(self.players, self.ui)
+        m = Match(self.players, self.ui, self.settings)
         self.ui.setDirectory('match')
         self.players = m.play()
 
@@ -80,7 +109,7 @@ class Game():
         self.ui.setDirectory('main')
         self.ui.console("Welcome to Uno! Add Players to Begin.")
         while True:
-            self.ui.controls('Navigate with Arrow Keys, Select with Space Bar or Enter Button')
+            self.ui.controls('Navigate with Arrow Keys. Select with SPACE BAR or ENTER')
             self.ui.updateMainButtons(self.numPlayers, self.buttonPointer)
             command = self.ui.getInput()
         
@@ -150,30 +179,26 @@ class Game():
                             break
                     if self.numPlayers == 0:
                         self.buttonPointer = 1
+                elif self.buttonPointer == 4:
+                    self.ui.controls("Navigate with Arrow Keys. Press ENTER or ESC To Exit.")
+                    self.ui.colorWindow('settingsButton','green')
+                    self.settingsPointer = 0
+                    self.ui.setSettingsPointer(self.settingsPointer)
+                    playerInput = self.ui.getInput()
+                    while playerInput != ord('\n') and playerInput != 27:
+                        if playerInput == curses.KEY_DOWN:
+                            self.settingsPointer = Game.SETTINGS_MOVEMENTS[self.settingsPointer][1]
+                            self.ui.setSettingsPointer(self.settingsPointer)
+                        elif playerInput == curses.KEY_UP:
+                            self.settingsPointer = Game.SETTINGS_MOVEMENTS[self.settingsPointer][0]
+                            self.ui.setSettingsPointer(self.settingsPointer)
+                        elif playerInput in (ord(' '),curses.KEY_LEFT,curses.KEY_RIGHT):
+                            self.updateSettings()
+                            self.ui.updateSettingsBoard(self.settings)
+                        playerInput = self.ui.getInput()
+                    self.settingsPointer = -1
+                    self.ui.setSettingsPointer(self.settingsPointer)
+                    self.ui.colorWindow('settingsButton', 'yellow')
 
             elif command == ord('q'):
                 exit()
-
-        '''
-
-        time.sleep(1)
-        self.ui.updateMainButtons(1,2)
-        self.ui.updateStage(0, "Brandon", 12344)
-        time.sleep(.3)
-        self.ui.updateMainButtons(2,2)
-        self.ui.updateStage(1, "Frank", 99999999999)
-        time.sleep(.3)
-        self.ui.updateMainButtons(3,2)
-        self.ui.updateStage(2, "Mark", 1238)
-        time.sleep(.3)
-        self.ui.updateMainButtons(4,2)
-        self.ui.updateStage(3, "Jack", 3489507)
-        time.sleep(20)
-        self.ui.updateMainButtons(1)
-        self.ui.clearStage(3)
-        self.ui.clearStage(2)
-        self.ui.clearStage(1)
-        time.sleep(20)
-        self.ui.setDirectory('match')
-        time.sleep(5)
-        '''
