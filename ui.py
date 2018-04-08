@@ -296,7 +296,7 @@ class UnoInterface():
             self.putText('settingsTable', 4, 8, 'True', 'green')
             self.putText('settingsTable', 6, 2, '- Computer Speed', 'white')
             self.putText('settingsTable', 7, 8, 'Normal', 'yellow')
-            self.putText('settingsTable', 9, 2, '- Hide Computer Hands', 'white')
+            self.putText('settingsTable', 9, 2, '- Show Computer Hands', 'white')
             self.putText('settingsTable', 10, 8, 'False', 'red')
             self.putText('settingsTable', 12, 2, '- Does Nothing', 'white')
             self.putText('settingsTable', 13, 8, 'False', 'red')
@@ -334,6 +334,13 @@ class UnoInterface():
         curses.doupdate()
 
     def putText(self, windowName, y, x, text, color=None, refresh=True):
+        hidden = False
+        try:
+            hidden = self.windows[windowName]['panel'].hidden()
+        except:
+            pass
+        if hidden:
+            self.windows[windowName]['panel'].show()
         if color:
             try:
                 self.windows[windowName]['window'].addstr(y, x, text, self.TEXT_COLORS[color])
@@ -346,6 +353,9 @@ class UnoInterface():
                 pass
         if refresh:
             self.windows[windowName]['window'].refresh()
+        if hidden:
+            self.windows[windowName]['panel'].hide()
+            self.refreshPanels()
 
     def console(self, text):
         self.windows['console']['window'].addstr(1,1,'                                                                    ')
@@ -900,7 +910,7 @@ class UnoInterface():
         if self.settingsPointer == 1:
             self.putText('settingsTable', 6, 2, '- Computer Speed', 'white')
         if self.settingsPointer == 2:
-            self.putText('settingsTable', 9, 2, '- Hide Computer Hands', 'white')
+            self.putText('settingsTable', 9, 2, '- Show Computer Hands', 'white')
         if self.settingsPointer == 3:
             self.putText('settingsTable', 12, 2, '- Does Nothing', 'white')
         self.settingsPointer = num
@@ -909,7 +919,7 @@ class UnoInterface():
         if self.settingsPointer == 1:
             self.putText('settingsTable', 6, 2, '- Computer Speed', 'blue')
         if self.settingsPointer == 2:
-            self.putText('settingsTable', 9, 2, '- Hide Computer Hands', 'blue')
+            self.putText('settingsTable', 9, 2, '- Show Computer Hands', 'blue')
         if self.settingsPointer == 3:
             self.putText('settingsTable', 12, 2, '- Does Nothing', 'blue')
 
@@ -920,7 +930,7 @@ class UnoInterface():
         else:
             self.putText('settingsTable', 4, 8, 'False', 'red', False)
         self.putText('settingsTable', 10, 8, '        ', 'white', False)
-        if settings['hideHands']:
+        if settings['showHands']:
             self.putText('settingsTable', 10, 8, 'True', 'green', False)
         else:
             self.putText('settingsTable', 10, 8, 'False', 'red', False)

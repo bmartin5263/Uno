@@ -39,7 +39,7 @@ class Game():
 
         self.settings = {
             'effects' : True,
-            'hideHands' : False,
+            'showHands' : False,
             'speed' : 'Normal',
             'dummy' : False
         }
@@ -87,7 +87,7 @@ class Game():
         if self.settingsPointer == 1:
             self.settings['speed'] = Game.NEXT_SPEED[self.settings['speed']]
         if self.settingsPointer == 2:
-            self.settings['hideHands'] = not self.settings['hideHands']
+            self.settings['showHands'] = not self.settings['showHands']
         if self.settingsPointer == 3:
             self.settings['dummy'] = not self.settings['dummy']
 
