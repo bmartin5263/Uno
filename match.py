@@ -74,7 +74,7 @@ class Match():
         self.ui.console("First Turn will be {}, Press Enter".format(self.players[self.turn].name))
         self.ui.getInput()
         card = self.deck.drawCard()
-        #card = Card('blue','X')
+        card = Card('wild','+4')
         self.pile.addCard(card)
         self.ui.importCard(self.pile[0].getUIData(), False, self.reverse)
         for i in range(12):
@@ -85,7 +85,10 @@ class Match():
         if self.currentValue in Match.WILD_CARDS:
             self.ui.importHand(self.players[self.turn].hand.getUIData(), self.players[self.turn].name, False, False)
             self.ui.emphasizePlayer(self.turn)
-            self.eventWild()
+            wildColorChange = None
+            if self.players[self.turn].type != 'human':
+                wildColorChange = random.choice(self.ui.COLORS)
+            self.eventWild(wildColorChange)
         elif self.currentValue == 'X' or (self.currentValue == 'R' and len(self.players) == 2):
             self.eventSkip(True)
             self.turn = self.getNextTurn()
