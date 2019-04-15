@@ -74,7 +74,6 @@ class Match():
         self.ui.console("First Turn will be {}, Press Enter".format(self.players[self.turn].name))
         self.ui.getInput()
         card = self.deck.drawCard()
-        card = Card('wild','+4')
         self.pile.addCard(card)
         self.ui.importCard(self.pile[0].getUIData(), False, self.reverse)
         for i in range(12):
